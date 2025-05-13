@@ -1,0 +1,44 @@
+# 1. Ustawienia interfejsu sieciowego
+New-NetIPAddress -InterfaceAlias "Ethernet" -IPAddress 10.0.0.2 -PrefixLength 8 -DefaultGateway 10.0.0.1
+Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 10.0.0.1
+
+# 2. Ustaw nazwę komputera i grupę roboczą
+Rename-Computer -NewName "Serwerx" -Force
+Add-Computer -WorkGroupName "LANx" -Force  # x = numer stanowiska
+
+# 3. Utwórz użytkownika Jan Kowalski
+$haslo = ConvertTo-SecureString "zaq1@WSX" -AsPlainText -Force
+New-LocalUser -Name "jkowalski" -FullName "Jan Kowalski" -Password $haslo
+Add-LocalGroupMember -Group "Users" -Member "jkowalski"
+
+# 4. Utwórz folder dane i udostępnij go
+$folderPath = "C:\dane"
+New-Item -ItemType Directory -Path $folderPath
+
+# 5. Ustaw uprawnienia do folderu (administrator - pełne, jkowalski - modyfikacja)
+$adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule("Administrator", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+$jkowalskiRule = New-Object System.Security.AccessControl.FileSystemAccessRule("jkowalski", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+
+$acl = Get-Acl $folderPath
+$acl.SetAccessRule($adminRule)
+$acl.AddAccessRule($jkowalskiRule)
+Set-Acl -Path $folderPath -AclObject $acl
+
+# 6. Udostępnij folder
+New-SmbShare -Name "dane" -Path $folderPath -FullAccess "Administrator" -ChangeAccess "jkowalski"
+
+# 7. Tworzenie pliku z loginem i hasłem routera
+$routerLogin = "admin"
+$routerPassword = "TwojeHasłoDoRoutera"
+$routerFile = "C:\Users\Administrator\Desktop\Konfiguracja\haslo.txt"
+New-Item -Path "C:\Users\Administrator\Desktop\Konfiguracja" -ItemType Directory -Force
+Set-Content -Path $routerFile -Value "Login: $routerLogin`nHasło: $routerPassword"
+
+# Informacja końcowa
+Write-Host "Konfiguracja zakończona. Uruchom ponownie komputer." -ForegroundColor Green
+
+
+#Sprawdzenie
+Get-SmbShare
+Get-ComputerInfo | Select-Object CsWorkgroup
+hostname
